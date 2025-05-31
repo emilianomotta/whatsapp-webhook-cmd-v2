@@ -1,3 +1,4 @@
+
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
@@ -17,14 +18,34 @@ def webhook():
                 return challenge, 200
             else:
                 return 'Token de verificación incorrecto', 403
+
     elif request.method == 'POST':
         # Manejar eventos entrantes
         data = request.get_json()
         print('Evento recibido:', data)
-        # Aquí va la lógica para responder o procesar mensajes
+
+        # Ignorar mensajes echo para evitar loops
+        if data.get('entry'):
+            for entry in data['entry']:
+                changes = entry.get('changes', [])
+                for change in changes:
+                    if change.get('field') == 'messages':
+                        value = change.get('value', {})
+                        messages = value.get('messages', [])
+                        for message in messages:
+                            # Detectar mensaje echo: si el mensaje fue enviado por nuestro número
+                            from_number = message.get('from')
+                            metadata_phone = value.get('metadata', {}).get('phone_number_id')
+                            if from_number == metadata_phone:
+                                print('Mensaje echo detectado. Ignorando...')
+                                return 'EVENT_RECEIVED', 200
+
+        # Aquí va la lógica para responder o procesar mensajes normales
         return 'EVENT_RECEIVED', 200
+
     else:
         return 'Método no permitido', 405
+
 
 if __name__ == '__main__':
     app.run(debug=True)
