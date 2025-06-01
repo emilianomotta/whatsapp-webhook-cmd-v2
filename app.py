@@ -26,3 +26,6 @@ def webhook():
         return 'EVENT_RECEIVED', 200
 
     return 'Método no permitido', 405
+
+if __name__ == '__main__':
+    app.run(debug=True)
