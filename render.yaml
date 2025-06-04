@@ -1,8 +1,10 @@
-
 services:
   - type: web
-    name: whatsapp-webhook-cmd-v2
+    name: whatsapp-webhook-emi
     env: python
-    buildCommand: "pip install -r requirements.txt"
+    buildCommand: ""
     startCommand: "gunicorn app:app"
     plan: free
+    envVars:
+      - key: WHATSAPP_TOKEN
+        value: EAAKGtLKRBjYBOZCO1fG9gdf5Tiu2WtO3x9cQAx0cVMGHDASRJxYGYQ12CXceFZAqcV8a8JRAGrLXePr1HC0ZBdWdMvZCv7pZBeWs2k1UQyM5rBeOZCsLvq5s3ZBNB50jVdom55ydZBSskZCIVMMFcMCaSB8o3vOImu41STimND5SMSmpTDcb4EaDsfZC7xAdNbj83VafAkQsHgiMPUZAZBSQEsuZCISbSZB7ZAZCNUzzSZC3xToOgkj0uKKAs2x8ZD

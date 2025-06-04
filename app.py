@@ -1,18 +1,24 @@
-
-from flask import Flask, request
-import os
-import requests
+from flask import Flask, request, Response, jsonify
+from flask_cors import CORS
+from pymongo import MongoClient
+import os, time, threading, json
 
 app = Flask(__name__)
+CORS(app)
 
 VERIFY_TOKEN = "Emi-token-123"
-ACCESS_TOKEN = "EAAKGtLKRBjYBOZCO1fG9gdf5Tiu2WtO3x9cQAx0cVMGHDASRJxYGYQ12CXceFZAqcV8a8JRAGrLXePr1HC0ZBdWdMvZCv7pZBeWs2k1UQyM5rBeOZCsLvq5s3ZBNB50jVdom55ydZBSskZCIVMMFcMCaSB8o3vOImu41STimND5SMSmpTDcb4EaDsfZC7xAdNbj83VafAkQsHgiMPUZAZBSQEsuZCISbSZB7ZAZCNUzzSZC3xToOgkj0uKKAs2x8ZD"
+PAGE_ACCESS_TOKEN = os.environ.get("WHATSAPP_TOKEN", "EAAKGtLKRBjY...")  # Token largo
+MONGO_URI = "mongodb+srv://emilianomottadesouza:1XkGVRmrQYtWvHie@cmd-db.esdo09q.mongodb.net/?retryWrites=true&w=majority&appName=cmd-db"
 
-known_contacts = set()
+client = MongoClient(MONGO_URI)
+db = client["cmd-db"]
+messages_col = db["messages"]
+
+subscribers = []
 
 @app.route('/')
 def index():
-    return 'Webhook activo', 200
+    return 'Webhook CMD Activo', 200
 
 @app.route('/webhook', methods=['GET', 'POST'])
 def webhook():
@@ -25,49 +31,60 @@ def webhook():
         else:
             return "Unauthorized", 403
 
-    elif request.method == 'POST':
+    if request.method == 'POST':
         data = request.get_json()
-        print("Mensaje recibido:", data)
-
-        try:
-            for entry in data.get("entry", []):
-                for change in entry.get("changes", []):
-                    value = change.get("value", {})
-                    messages = value.get("messages", [])
-                    if messages:
-                        message = messages[0]
-                        texto = message.get("text", {}).get("body", "").lower()
-                        numero = message.get("from")
-                        telefono_id = value.get("metadata", {}).get("phone_number_id")
-
-                        respuesta = None
-
-                        if any(palabra in texto for palabra in ["ingreso", "ingresó", "ingresando", "entré", "entrada"]):
-                            respuesta = "Tu mensaje fue recibido por el CMD de Montevideo. Si luego de 5 minutos no eres contactado el ingreso se considera AUTORIZADO, no olvides informar la salida, gracias."
-                        elif any(palabra in texto for palabra in ["salida", "salí", "finalizado", "me fui"]):
-                            respuesta = "Tu mensaje fue recibido por el CMD de Montevideo. Gracias por informar la salida, saludos."
-                        elif numero not in known_contacts:
-                            known_contacts.add(numero)
-                            respuesta = "Bienvenido, tu mensaje fue recibido por el CMD de Montevideo, procedemos a agendarte en nuestra base de datos.\n\nIMPORTANTE\nFavor respetar el formato de texto que tienen que enviar\n\nEjemplos para ingreso de quienes tienen cel registrado a nombre personal:\n\nIngreso SB0001 relevamiento                      Salida SB0001\nIngreso ES01 comunicaciones                    Salida ES01\nIngreso MH inspección                                  Salida MH\n\nPara quienes trabajan en los cables y línea:\n\nEST01 a SB0001 reparación                       EST01 a SB0001 Finalizado\nSB0001 a SB0002 ensayos DP y TD          SB0001 a SB0002 Finalizado\nES31 a ES78 verificar traza                        ES31 a ES78 Finalizado\nSC602456 a SB4567 LMT poda                 SC602456 a SB4567 Finalizado\nSB3456 a SB2745 LMT poda                      SB3456 a SB2745 Finalizado\n\nPara quiénes trabajan en baja tensión:\n\nIngreso SB0001 Trabajos en BT reparación ….\nSalida SB0001\n\nPara quienes tienen Cel compartidos agregar nombre y apellido empresa y la unidad a la que realizan la tarea:\n\nIngreso SB0001 relevamiento  Juan Perez UTE obras\nSalida SB0001 Juan Perez UTE obras\n\nNO OLVIDAR ENVIAR EL MENSAJE DE SALIDA.\n\nMensaje automático no contestar"
-
-                        if respuesta:
-                            url = f"https://graph.facebook.com/v18.0/{telefono_id}/messages"
-                            headers = {
-                                "Authorization": f"Bearer {ACCESS_TOKEN}",
-                                "Content-Type": "application/json"
-                            }
-                            payload = {
-                                "messaging_product": "whatsapp",
-                                "to": numero,
-                                "text": {"body": respuesta}
-                            }
-                            r = requests.post(url, headers=headers, json=payload)
-                            print("Respuesta enviada:", r.json())
-
-        except Exception as e:
-            print("Error procesando mensaje:", e)
-
+        print("Mensaje recibido:", json.dumps(data, indent=2))
+        threading.Thread(target=process_message, args=(data,)).start()
         return "EVENT_RECEIVED", 200
 
+def process_message(data):
+    try:
+        entry = data.get("entry", [])[0]
+        changes = entry.get("changes", [])[0]
+        value = changes.get("value", {})
+        messages = value.get("messages", [])
+        if not messages:
+            return
+        msg = messages[0]
+        wa_id = msg.get("from")
+        text = msg.get("text", {}).get("body", "")
+        timestamp = msg.get("timestamp")
+        profile = value.get("contacts", [{}])[0].get("profile", {})
+        name = profile.get("name", "Sin nombre")
+
+        tipo = detectar_tipo(text)
+        registro = {"wa_id": wa_id, "nombre": name, "texto": text, "timestamp": timestamp, "tipo": tipo}
+        messages_col.insert_one(registro)
+
+        for sub in subscribers:
+            sub.put(json.dumps(registro))
+
+    except Exception as e:
+        print("Error al procesar:", e)
+
+def detectar_tipo(text):
+    t = text.lower()
+    if "ingres" in t:
+        return "ingreso"
+    elif "salid" in t or "finalizado" in t:
+        return "salida"
+    return "otro"
+
+import queue
+
+@app.route('/stream')
+def stream():
+    def event_stream(q):
+        while True:
+            try:
+                msg = q.get()
+                yield f"data: {msg}\n\n"
+            except:
+                break
+
+    q = queue.Queue()
+    subscribers.append(q)
+    return Response(event_stream(q), mimetype="text/event-stream")
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+    app.run(debug=True)
