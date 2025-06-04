@@ -63,7 +63,10 @@ def webhook():
                                     "to": from_number,
                                     "text": {"body": texto_respuesta}
                                 }
-                                requests.post(url, json=payload, headers=headers)
+                                try:
+                                    requests.post(url, json=payload, headers=headers, timeout=5)
+                                except Exception as e:
+                                    print("Error al enviar mensaje:", e)
             except Exception as e:
                 print("Error al responder:", e)
 
