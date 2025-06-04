@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: whatsapp-webhook-cmd-v2
+    name: whatsapp-webhook-emi
     env: python
     buildCommand: "pip install -r requirements.txt"
     startCommand: "gunicorn app:app"

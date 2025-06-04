@@ -1,21 +1,19 @@
 from flask import Flask, request
-from flask_cors import CORS
 import os
-from pymongo import MongoClient
+import pymongo
 from datetime import datetime
 
 app = Flask(__name__)
-CORS(app)
 
 VERIFY_TOKEN = "Emi-token-123"
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
-client = MongoClient(MONGO_URI)
-db = client["cmd_montevideo"]
-collection = db["mensajes"]
+MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://emilianomottadesouza:1XkGVRmrQYtWvHie@cmd-db.esdo09q.mongodb.net/?retryWrites=true&w=majority&appName=cmd-db")
+client = pymongo.MongoClient(MONGO_URI)
+db = client.get_database("cmd-db")
+messages = db.get_collection("messages")
 
 @app.route("/")
 def index():
-    return "Webhook activo para CMD Montevideo", 200
+    return "Webhook activo", 200
 
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
@@ -25,14 +23,12 @@ def webhook():
         challenge = request.args.get("hub.challenge")
         if mode == "subscribe" and token == VERIFY_TOKEN:
             return challenge, 200
-        else:
-            return "Unauthorized", 403
+        return "Unauthorized", 403
     elif request.method == "POST":
         data = request.get_json()
-        print("Mensaje recibido:", data)
-        if data and "entry" in data:
-            collection.insert_one({
-                "timestamp": datetime.utcnow(),
-                "data": data
-            })
+        if data:
+            messages.insert_one({"data": data, "timestamp": datetime.utcnow()})
         return "EVENT_RECEIVED", 200
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=10000)
