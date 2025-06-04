@@ -31,7 +31,7 @@ def webhook():
     elif request.method == "POST":
         data = request.get_json()
         if data:
-            messages.insert_one({"data": data, "timestamp": datetime.utcnow()})
+            # messages.insert_one({"data": data, "timestamp": datetime.utcnow()"})  # Desactivado temporalmente para evitar errores SSL
             try:
                 for entry in data.get("entry", []):
                     for change in entry.get("changes", []):
