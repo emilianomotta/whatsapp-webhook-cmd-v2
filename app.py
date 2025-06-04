@@ -1,21 +1,22 @@
 from flask import Flask, request
-import os
-import pymongo
-import requests
 from datetime import datetime
+import requests
+import pymongo
+import os
 
 app = Flask(__name__)
 
-VERIFY_TOKEN = "Emi-token-123"
-ACCESS_TOKEN = os.getenv("ACCESS_TOKEN", "EAAKGtLKRBjYBO4ygG1ZAhGZAFHzKkIMdjj0C9awy0ZCKNMZC455Th7epmt6Ac1bbAuNMN6FfqVrhZCgyvhR3ZClHR3ZBbiI2xBO55vWCCDNwEnxe9PHLM01OytWpqTRHpG04UHGyyLHOnwKTTeP5ZBe2eFoKIJJ6rQC6vZBJBCqLltSNX0JZCwEfVQ6fDJ0h3ZCUgAPrDrPVtjTPAFcXfUlckVSJccqkgfKua2JZAYbczFlOojek26g8OwcZD")
-MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://emilianomotta2025:2MurnEOaFb44EIrh@cluster0.oijxuj7.mongodb.net/?retryWrites=true&w=majority&tls=true")
+VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "Emi-token-123")
+ACCESS_TOKEN = os.getenv("ACCESS_TOKEN", "TU_TOKEN_TEMPORAL_AQUI")
+MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://emilianomottadesouza:1XkGVRmrQYtWvHie@cmd-db.esdo09q.mongodb.net/?retryWrites=true&w=majority&appName=cmd-db")
+
 client = pymongo.MongoClient(MONGO_URI)
-db = client.get_database("cmd-db")
-messages = db.get_collection("messages")
+db = client["whatsapp"]
+messages = db["mensajes"]
 
 @app.route("/")
 def index():
-    return "Webhook activo", 200
+    return "CMD Webhook Online"
 
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
@@ -26,6 +27,7 @@ def webhook():
         if mode == "subscribe" and token == VERIFY_TOKEN:
             return challenge, 200
         return "Unauthorized", 403
+
     elif request.method == "POST":
         data = request.get_json()
         if data:
@@ -38,20 +40,33 @@ def webhook():
                         for msg in messages_list:
                             phone_id = value["metadata"]["phone_number_id"]
                             from_number = msg["from"]
-                            text = "Mensaje Recibido por el CMD de Montevideo, gracias por informar la salida, saludos."
-                            url = f"https://graph.facebook.com/v19.0/{phone_id}/messages"
-                            headers = {
-                                "Authorization": f"Bearer {ACCESS_TOKEN}",
-                                "Content-Type": "application/json"
-                            }
-                            payload = {
-                                "messaging_product": "whatsapp",
-                                "to": from_number,
-                                "text": {"body": text}
-                            }
-                            requests.post(url, json=payload, headers=headers)
+                            mensaje = msg.get("text", {}).get("body", "").lower().strip()
+
+                            palabras_ingreso = ["ingreso", "entré", "entre", "entrando", "llegué"]
+                            palabras_salida = ["salida", "salí", "me fui", "retirada", "saliendo"]
+
+                            if any(p in mensaje for p in palabras_ingreso):
+                                texto_respuesta = "Tu mensaje fue recibido por el CMD de Montevideo. Si luego de 5 minutos no eres contactado el ingreso se considera AUTORIZADO"
+                            elif any(p in mensaje for p in palabras_salida):
+                                texto_respuesta = "Tu mensaje fue recibido por el CMD de Montevideo."
+                            else:
+                                texto_respuesta = None
+
+                            if texto_respuesta:
+                                url = f"https://graph.facebook.com/v19.0/{phone_id}/messages"
+                                headers = {
+                                    "Authorization": f"Bearer {ACCESS_TOKEN}",
+                                    "Content-Type": "application/json"
+                                }
+                                payload = {
+                                    "messaging_product": "whatsapp",
+                                    "to": from_number,
+                                    "text": {"body": texto_respuesta}
+                                }
+                                requests.post(url, json=payload, headers=headers)
             except Exception as e:
                 print("Error al responder:", e)
+
         return "EVENT_RECEIVED", 200
 
 if __name__ == "__main__":
