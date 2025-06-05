@@ -8,7 +8,7 @@ from datetime import datetime
 app = Flask(__name__)
 
 VERIFY_TOKEN = "Emi-token-123"
-ACCESS_TOKEN = os.getenv("ACCESS_TOKEN", "EAAKGtLKRBjYBO1FCxqRRdHjVNjpDpVeh0BPuGrBbAEb0ZBBSZBkVMWUaG1FKdCs9kZCz1ZAljusciBpzKESIFiPJqzwyerHqE2x9FrFrkGkd24ZAkzZC35xtAwxxbJWc560z2U5pVjcGZCeJLO3T05WZAvlY4EJC6zWMceWQryoRBbOlxiRkJYKKH6Keo5vz8t8oFk5Db07RcQgvxvDZAZC80tNI8LxbLYHp5YEPbX50CT0H07S9YvaQwZD")
+ACCESS_TOKEN = os.getenv("ACCESS_TOKEN", "EAAKGtLKRBjYBO1ndqFPXLS6MZBNceZCUQX0Betakk1kRVThHgCRS8VEjertWlKLiE4oiHgnHOJWYzNXPKn1ZCCXfRgeYiYXGA246TuyqzyxOmBnt5lTimQDy7yWnnDHNCblbMFjWmZCymCu2MoTdCuA6e1en6ItciSy2V53ZCGb837lw3q9IBwIpKUhmgKjTaKldkSWocOC3oZCkEdZA2LY38r0kyRDPWRnEomWIwhI2Et5j22Tm8MZD")
 MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://emilianomotta2025:2MurnEOaFb44EIrh@cluster0.oijxuj7.mongodb.net/?retryWrites=true&w=majority&tls=true")
 client = pymongo.MongoClient(MONGO_URI)
 db = client.get_database("cmd-db")
