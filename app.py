@@ -45,17 +45,18 @@ def webhook():
                             text_received = msg.get("text", {}).get("body", "").lower().strip()
 
                             contacto = agenda.find_one({"telefono": from_number})
-                            nombre_mostrar = contacto["nombre"] if contacto else profile_name
+                            nombre_consola = contacto["nombre"] if contacto else profile_name
+                            nombre_whatsapp = profile_name  # este es el que se responde por WhatsApp
 
                             palabras_ingreso = ["ingreso", "entrada", "entré", "entro", "ingresé"]
                             palabras_salida = ["salida", "salí", "salgo", "me fui", "fuera"]
 
                             if any(p in text_received for p in palabras_ingreso):
-                                respuesta = f"{nombre_mostrar}, tu mensaje fue recibido por el CMD de Montevideo. Si luego de 5 minutos no eres contactado el ingreso se considera AUTORIZADO."
+                                respuesta = f"{nombre_whatsapp}, tu mensaje fue recibido por el CMD de Montevideo. Si luego de 5 minutos no eres contactado el ingreso se considera AUTORIZADO."
                             elif any(p in text_received for p in palabras_salida):
-                                respuesta = f"{nombre_mostrar}, tu mensaje fue recibido por el CMD de Montevideo. Gracias por informar la salida, saludos."
+                                respuesta = f"{nombre_whatsapp}, tu mensaje fue recibido por el CMD de Montevideo. Gracias por informar la salida, saludos."
                             else:
-                                respuesta = f"{nombre_mostrar}, tu mensaje fue recibido por el CMD de Montevideo."
+                                respuesta = f"{nombre_whatsapp}, tu mensaje fue recibido por el CMD de Montevideo."
 
                             url = f"https://graph.facebook.com/v19.0/{phone_id}/messages"
                             headers = {
