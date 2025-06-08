@@ -8,11 +8,13 @@ from datetime import datetime
 app = Flask(__name__)
 
 VERIFY_TOKEN = "Emi-token-123"
-ACCESS_TOKEN = os.getenv("ACCESS_TOKEN", "EAAKGtLKRBjYBO1ndqFPXLS6MZBNceZCUQX0Betakk1kRVThHgCRS8VEjertWlKLiE4oiHgnHOJWYzNXPKn1ZCCXfRgeYiYXGA246TuyqzyxOmBnt5lTimQDy7yWnnDHNCblbMFjWmZCymCu2MoTdCuA6e1en6ItciSy2V53ZCGb837lw3q9IBwIpKUhmgKjTaKldkSWocOC3oZCkEdZA2LY38r0kyRDPWRnEomWIwhI2Et5j22Tm8MZD")
+ACCESS_TOKEN = os.getenv("ACCESS_TOKEN", "EAAKGtLKRBjYBO1iG7enDC6uC2ygpkQLIZAup531mvNqixgLkGKur7YFSxoi1PUoWZAnCN8SrTgSTQnTRZBAwd7EFBhumVBgDbh73DFkNgFw9EZBYAYrWN2nWYvA1Xh6N6HJZCW37g6nSBDmmJ7DEkyZAxBWIKngnxt6nXtVxo298XgOxC8MHqNb0nxHj9AetOeLqxifHcNxM9Y46EMI0oI3NsGsajeKpQMXiAI3SNh5KXXyTrjPrgZD")
 MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://emilianomotta2025:2MurnEOaFb44EIrh@cluster0.oijxuj7.mongodb.net/?retryWrites=true&w=majority&tls=true")
+
 client = pymongo.MongoClient(MONGO_URI)
 db = client.get_database("cmd-db")
 messages = db.get_collection("messages")
+agenda = db.get_collection("agenda")
 
 @app.route("/")
 def index():
@@ -39,17 +41,21 @@ def webhook():
                         for msg in messages_list:
                             phone_id = value["metadata"]["phone_number_id"]
                             from_number = msg["from"]
+                            profile_name = value.get("contacts", [{}])[0].get("profile", {}).get("name", "")
                             text_received = msg.get("text", {}).get("body", "").lower().strip()
+
+                            contacto = agenda.find_one({"telefono": from_number})
+                            nombre_mostrar = contacto["nombre"] if contacto else profile_name
 
                             palabras_ingreso = ["ingreso", "entrada", "entré", "entro", "ingresé"]
                             palabras_salida = ["salida", "salí", "salgo", "me fui", "fuera"]
 
                             if any(p in text_received for p in palabras_ingreso):
-                                respuesta = "Tu mensaje fue recibido por el CMD de Montevideo. Si luego de 5 minutos no eres contactado el ingreso se considera AUTORIZADO."
+                                respuesta = f"{nombre_mostrar}, tu mensaje fue recibido por el CMD de Montevideo. Si luego de 5 minutos no eres contactado el ingreso se considera AUTORIZADO."
                             elif any(p in text_received for p in palabras_salida):
-                                respuesta = "Tu mensaje fue recibido por el CMD de Montevideo."
+                                respuesta = f"{nombre_mostrar}, tu mensaje fue recibido por el CMD de Montevideo. Gracias por informar la salida, saludos."
                             else:
-                                respuesta = "Tu mensaje fue recibido por el CMD de Montevideo."
+                                respuesta = f"{nombre_mostrar}, tu mensaje fue recibido por el CMD de Montevideo."
 
                             url = f"https://graph.facebook.com/v19.0/{phone_id}/messages"
                             headers = {
