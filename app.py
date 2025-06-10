@@ -6,7 +6,6 @@ import pymongo
 import requests
 from datetime import datetime
 
-# Conexión a MongoDB para nombres y mensajes
 client = pymongo.MongoClient("mongodb+srv://emilianomotta2025:2MurnEOaFb44EIrh@cluster0.oijxuj7.mongodb.net/?retryWrites=true&w=majority&tls=true")
 db = client.get_database("cmd-db")
 agenda_collection = db["agenda"]
@@ -38,6 +37,8 @@ def webhook():
         return "Unauthorized", 403
     elif request.method == "POST":
         data = request.get_json()
+        print("EVENTO RECIBIDO:")
+        print(data)
         if data:
             messages.insert_one({"data": data, "timestamp": datetime.utcnow()})
             try:
