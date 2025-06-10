@@ -18,7 +18,7 @@ app = Flask(__name__)
 CORS(app)
 
 VERIFY_TOKEN = "Emi-token-123"
-ACCESS_TOKEN = os.getenv("ACCESS_TOKEN", "EAAKGtLKRBjYBO3nA0dgfI8uhsfZBWJiZAaKHoTkyuIUCaf7VUYpzkbHri6AzCwx1N5tbT4fAT3V9FGZAGLUETmPeon3syi1r23ZBNMyL0Ww56ZBK03FxeTfXsIUeSLprebQjGGt8TLZAi1VhfCRuLM9pqBZAHhtMZCkP3GcHHNsfSyFmOezZBxPmp07EKDTwUG57rTWao0rWe7JmG6GOSgsknBrkAGM83IUnPDyZAnib8iGGwqtEZBTgQsZD")
+ACCESS_TOKEN = os.getenv("ACCESS_TOKEN", "EAAKGtLKRBjYBO4CqHvCyOkkrotZCQSp4zoZAvPypYCbRqu1xT9MSlc9OWYlq7iypisujnXxYRZBMVQvw6VUjGoCzuI9G0kuX14mqK7i6Lw3Qlm2NFsJezz3G1i7KuFi0qZBZCgAEl8cWZBk6Mu6d2y2h4yolHztiGMetEDvfHphTuJ3tLQXhbUE6ywsN69gTkiWNLDekgk1cKIeZCm0oCeuZBZCdJ52vLwyymtCRol8UP7ZA1xTVeOWn0ZD")
 MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://emilianomotta2025:2MurnEOaFb44EIrh@cluster0.oijxuj7.mongodb.net/?retryWrites=true&w=majority&tls=true")
 client = pymongo.MongoClient(MONGO_URI)
 db = client.get_database("cmd-db")
