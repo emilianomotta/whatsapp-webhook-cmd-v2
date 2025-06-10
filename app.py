@@ -1,15 +1,14 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request
 from flask_cors import CORS
 import os
 import pymongo
 import requests
 from datetime import datetime
 
-# Conexión a MongoDB para nombres y mensajes
-client = pymongo.MongoClient("mongodb+srv://emilianomotta2025:2MurnEOaFb44EIrh@cluster0.oijxuj7.mongodb.net/?retryWrites=true&w=majority&tls=true")
-db = client.get_database("cmd-db")
+# Conexión a MongoDB Atlas para obtener nombres agendados
+client = pymongo.MongoClient("mongodb+srv://emilianomottadesouza:1XkGVRmrQYtWvHie@cmd-db.esdo09q.mongodb.net/?retryWrites=true&w=majority&appName=cmd-db")
+db = client["cmd"]
 agenda_collection = db["agenda"]
-messages = db["messages"]
 
 def obtener_nombre(numero):
     contacto = agenda_collection.find_one({"telefono": numero})
@@ -19,7 +18,11 @@ app = Flask(__name__)
 CORS(app)
 
 VERIFY_TOKEN = "Emi-token-123"
-ACCESS_TOKEN = os.getenv(EAAKGtLKRBjYBO9M5iiHAyvvtdZB6rLgWfSNYb5yparyatagA2Yd755NPz512z3zBMcw4N2KO8aZCZBr34dKLA9TZAU9EFZCPTwHMUI0zt2ZBRloeAZC5fZBiMSV7kJlbMXHk9VPtQuBcY4BXJTE6boRES86CRAZAldpm1u8i8M7LFRm2TiIc7mLUyUT9mLWxhWPRZB1RpFeDumfOfS9PZCzuqsZBGyFKsEzsfpiTbKIIZBnZAWK9rcQurckOcZD)
+ACCESS_TOKEN = os.getenv("ACCESS_TOKEN", "EAAKGtLKRBjYBO3nA0dgfI8uhsfZBWJiZAaKHoTkyuIUCaf7VUYpzkbHri6AzCwx1N5tbT4fAT3V9FGZAGLUETmPeon3syi1r23ZBNMyL0Ww56ZBK03FxeTfXsIUeSLprebQjGGt8TLZAi1VhfCRuLM9pqBZAHhtMZCkP3GcHHNsfSyFmOezZBxPmp07EKDTwUG57rTWao0rWe7JmG6GOSgsknBrkAGM83IUnPDyZAnib8iGGwqtEZBTgQsZD")
+MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://emilianomotta2025:2MurnEOaFb44EIrh@cluster0.oijxuj7.mongodb.net/?retryWrites=true&w=majority&tls=true")
+client = pymongo.MongoClient(MONGO_URI)
+db = client.get_database("cmd-db")
+messages = db.get_collection("messages")
 
 @app.route("/")
 def index():
@@ -43,8 +46,8 @@ def webhook():
                 for entry in data.get("entry", []):
                     for change in entry.get("changes", []):
                         value = change.get("value", {})
-                        mensajes = value.get("messages", [])
-                        for msg in mensajes:
+                        messages_list = value.get("messages", [])
+                        for msg in messages_list:
                             phone_id = value["metadata"]["phone_number_id"]
                             from_number = msg["from"]
                             text_received = msg.get("text", {}).get("body", "").lower().strip()
@@ -75,29 +78,6 @@ def webhook():
             except Exception as e:
                 print("Error al responder:", e)
         return "EVENT_RECEIVED", 200
-
-@app.route("/mensajes", methods=["GET"])
-def obtener_mensajes():
-    docs = messages.find().sort("timestamp", -1).limit(100)
-    resultado = []
-    for doc in docs:
-        doc["_id"] = str(doc["_id"])
-        valor = doc.get("data", {})
-        for entry in valor.get("entry", []):
-            for change in entry.get("changes", []):
-                value = change.get("value", {})
-                mensajes = value.get("messages", [])
-                for msg in mensajes:
-                    numero = msg.get("from", "")
-                    texto = msg.get("text", {}).get("body", "")
-                    nombre = obtener_nombre(numero) or "Desconocido"
-                    resultado.append({
-                        "telefono": numero,
-                        "nombre": nombre,
-                        "mensaje": texto,
-                        "timestamp": doc["timestamp"]
-                    })
-    return jsonify(resultado), 200
 
 @app.route('/agregar-contacto', methods=['POST'])
 def agregar_contacto():
