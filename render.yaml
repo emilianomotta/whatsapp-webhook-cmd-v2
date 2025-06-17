@@ -1,0 +1,9 @@
+
+services:
+  - type: web
+    name: cmd-backend-v15
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python app.py"
+    autoDeploy: false
