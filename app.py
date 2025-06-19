@@ -12,6 +12,7 @@ CORS(app)
 VERIFY_TOKEN = "Emi-token-123"
 token_file = "access_token.txt"
 mensajes_file = "mensajes.json"
+agenda_file = "contacts.json"
 
 def get_access_token():
     if os.path.exists(token_file):
@@ -19,11 +20,7 @@ def get_access_token():
             return f.read().strip()
     return "TOKEN_POR_DEFECTO"
 
-def set_access_token(new_token):
-    with open(token_file, "w") as f:
-        f.write(new_token)
-
-def guardar_mensaje(data):
+def guardar_mensaje(fecha, numero, contacto, texto):
     mensajes = []
     if os.path.exists(mensajes_file):
         with open(mensajes_file, "r") as f:
@@ -31,7 +28,12 @@ def guardar_mensaje(data):
                 mensajes = json.load(f)
             except:
                 mensajes = []
-    mensajes.append({"data": data, "timestamp": datetime.utcnow().isoformat()})
+    mensajes.append({
+        "fecha": fecha,
+        "numero": numero,
+        "contacto": contacto,
+        "texto": texto
+    })
     with open(mensajes_file, "w") as f:
         json.dump(mensajes, f)
 
@@ -44,9 +46,22 @@ def cargar_mensajes():
                 return []
     return []
 
+def cargar_agenda():
+    if os.path.exists(agenda_file):
+        with open(agenda_file, "r") as f:
+            try:
+                return json.load(f)
+            except:
+                return {}
+    return {}
+
+def guardar_agenda(data):
+    with open(agenda_file, "w") as f:
+        json.dump(data, f)
+
 @app.route("/")
 def index():
-    return "Webhook CMD activo (v14 con almacenamiento en archivo)", 200
+    return "Webhook CMD activo (v15 compatible)", 200
 
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
@@ -61,7 +76,6 @@ def webhook():
     elif request.method == "POST":
         data = request.get_json()
         print("==> MENSAJE RECIBIDO:", data)
-        guardar_mensaje(data)
 
         try:
             for entry in data.get("entry", []):
@@ -71,14 +85,18 @@ def webhook():
                     for msg in messages_list:
                         phone_id = value["metadata"]["phone_number_id"]
                         from_number = msg["from"]
-                        text_received = msg.get("text", {}).get("body", "").lower().strip()
+                        text_received = msg.get("text", {}).get("body", "").strip()
+                        agenda = cargar_agenda()
+                        contacto = agenda.get(from_number, from_number)
+                        fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        guardar_mensaje(fecha, from_number, contacto, text_received)
 
                         palabras_ingreso = ["ingreso", "entrada", "entré", "entro", "ingresé"]
                         palabras_salida = ["salida", "salí", "salgo", "me fui", "fuera"]
 
-                        if any(p in text_received for p in palabras_ingreso):
+                        if any(p in text_received.lower() for p in palabras_ingreso):
                             respuesta = "Tu mensaje fue recibido por el CMD de Montevideo. Si luego de 5 minutos no eres contactado el ingreso se considera AUTORIZADO, no olvides informar la salida, gracias."
-                        elif any(p in text_received for p in palabras_salida):
+                        elif any(p in text_received.lower() for p in palabras_salida):
                             respuesta = "Tu mensaje fue recibido por el CMD de Montevideo, gracias por informar la salida, saludos."
                         else:
                             respuesta = "Mensaje recibido por el CMD de Montevideo."
@@ -94,9 +112,6 @@ def webhook():
                             "text": {"body": respuesta}
                         }
                         print("==> RESPUESTA AUTOMÁTICA:", respuesta)
-                        print("==> ENVIANDO A:", from_number)
-                        print("==> BODY:", body)
-                        print("==> HEADERS:", headers)
                         requests.post(url, headers=headers, json=body)
         except Exception as e:
             print("Error al procesar mensaje:", e)
@@ -107,10 +122,11 @@ def webhook():
 def obtener_mensajes():
     return jsonify(cargar_mensajes()), 200
 
-@app.route("/update-token", methods=["POST"])
-def actualizar_token():
-    nuevo_token = request.json.get("token")
-    if nuevo_token:
-        set_access_token(nuevo_token)
-        return jsonify({"status": "ok", "message": "Token actualizado"}), 200
-    return jsonify({"status": "error", "message": "Falta el token"}), 400
+@app.route("/agenda", methods=["GET", "POST"])
+def manejar_agenda():
+    if request.method == "GET":
+        return jsonify(cargar_agenda()), 200
+    elif request.method == "POST":
+        data = request.get_json()
+        guardar_agenda(data)
+        return jsonify({"status": "ok"}), 200
