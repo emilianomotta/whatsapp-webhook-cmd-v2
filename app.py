@@ -6,7 +6,7 @@ import requests
 from datetime import datetime
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 VERIFY_TOKEN = "Emi-token-123"
 token_file = "access_token.txt"
