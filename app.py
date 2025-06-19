@@ -3,7 +3,6 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
 import requests
-import json
 from datetime import datetime
 
 app = Flask(__name__)
@@ -11,8 +10,9 @@ CORS(app)
 
 VERIFY_TOKEN = "Emi-token-123"
 token_file = "access_token.txt"
-mensajes_file = "mensajes.json"
-agenda_file = "contacts.json"
+
+mensajes_en_memoria = []
+agenda_en_memoria = {}
 
 def get_access_token():
     if os.path.exists(token_file):
@@ -20,48 +20,9 @@ def get_access_token():
             return f.read().strip()
     return "TOKEN_POR_DEFECTO"
 
-def guardar_mensaje(fecha, numero, contacto, texto):
-    mensajes = []
-    if os.path.exists(mensajes_file):
-        with open(mensajes_file, "r") as f:
-            try:
-                mensajes = json.load(f)
-            except:
-                mensajes = []
-    mensajes.append({
-        "fecha": fecha,
-        "numero": numero,
-        "contacto": contacto,
-        "texto": texto
-    })
-    with open(mensajes_file, "w") as f:
-        json.dump(mensajes, f)
-
-def cargar_mensajes():
-    if os.path.exists(mensajes_file):
-        with open(mensajes_file, "r") as f:
-            try:
-                return json.load(f)
-            except:
-                return []
-    return []
-
-def cargar_agenda():
-    if os.path.exists(agenda_file):
-        with open(agenda_file, "r") as f:
-            try:
-                return json.load(f)
-            except:
-                return {}
-    return {}
-
-def guardar_agenda(data):
-    with open(agenda_file, "w") as f:
-        json.dump(data, f)
-
 @app.route("/")
 def index():
-    return "Webhook CMD activo (v15 compatible)", 200
+    return "Webhook CMD activo (v18 sin archivos)", 200
 
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
@@ -86,10 +47,14 @@ def webhook():
                         phone_id = value["metadata"]["phone_number_id"]
                         from_number = msg["from"]
                         text_received = msg.get("text", {}).get("body", "").strip()
-                        agenda = cargar_agenda()
-                        contacto = agenda.get(from_number, from_number)
+                        contacto = agenda_en_memoria.get(from_number, from_number)
                         fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        guardar_mensaje(fecha, from_number, contacto, text_received)
+                        mensajes_en_memoria.append({
+                            "fecha": fecha,
+                            "numero": from_number,
+                            "contacto": contacto,
+                            "texto": text_received
+                        })
 
                         palabras_ingreso = ["ingreso", "entrada", "entré", "entro", "ingresé"]
                         palabras_salida = ["salida", "salí", "salgo", "me fui", "fuera"]
@@ -120,13 +85,13 @@ def webhook():
 
 @app.route("/mensajes", methods=["GET"])
 def obtener_mensajes():
-    return jsonify(cargar_mensajes()), 200
+    return jsonify(mensajes_en_memoria), 200
 
 @app.route("/agenda", methods=["GET", "POST"])
 def manejar_agenda():
+    global agenda_en_memoria
     if request.method == "GET":
-        return jsonify(cargar_agenda()), 200
+        return jsonify(agenda_en_memoria), 200
     elif request.method == "POST":
-        data = request.get_json()
-        guardar_agenda(data)
+        agenda_en_memoria = request.get_json()
         return jsonify({"status": "ok"}), 200
