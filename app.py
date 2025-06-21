@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
@@ -95,3 +94,8 @@ def manejar_agenda():
     elif request.method == "POST":
         agenda_en_memoria = request.get_json()
         return jsonify({"status": "ok"}), 200
+@app.route("/mensajes/<numero>", methods=["DELETE"])
+def eliminar_mensajes_por_numero(numero):
+    global mensajes_en_memoria
+    mensajes_en_memoria = [m for m in mensajes_en_memoria if m["numero"] != numero]
+    return jsonify({"status": "eliminado", "numero": numero}), 200
