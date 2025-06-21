@@ -36,7 +36,7 @@ mensajes_ocultos = cargar_papelera()
 
 @app.route("/")
 def index():
-    return "Webhook CMD activo (v29 con papelera persistente)", 200
+    return "Webhook CMD activo (final con papelera persistente)", 200
 
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
@@ -61,6 +61,10 @@ def webhook():
                         phone_id = value["metadata"]["phone_number_id"]
                         from_number = msg["from"]
                         text_received = msg.get("text", {}).get("body", "").strip()
+
+                        if text_received in mensajes_ocultos:
+                            continue  # NO agregar mensajes ocultos
+
                         contacto = agenda_en_memoria.get(from_number, from_number)
                         fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         mensajes_en_memoria.append({
