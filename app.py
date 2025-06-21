@@ -12,6 +12,7 @@ token_file = "access_token.txt"
 
 mensajes_en_memoria = []
 agenda_en_memoria = {}
+numeros_bloqueados = set()
 
 def get_access_token():
     if os.path.exists(token_file):
@@ -21,7 +22,7 @@ def get_access_token():
 
 @app.route("/")
 def index():
-    return "Webhook CMD activo (v18 sin archivos)", 200
+    return "Webhook CMD activo (v25 bloquea eliminados)", 200
 
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
@@ -45,6 +46,11 @@ def webhook():
                     for msg in messages_list:
                         phone_id = value["metadata"]["phone_number_id"]
                         from_number = msg["from"]
+
+                        # Ignorar mensajes si el número fue eliminado manualmente
+                        if from_number in numeros_bloqueados:
+                            continue
+
                         text_received = msg.get("text", {}).get("body", "").strip()
                         contacto = agenda_en_memoria.get(from_number, from_number)
                         fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -86,6 +92,13 @@ def webhook():
 def obtener_mensajes():
     return jsonify(mensajes_en_memoria), 200
 
+@app.route("/mensajes/<numero>", methods=["DELETE"])
+def eliminar_mensajes_por_numero(numero):
+    global mensajes_en_memoria, numeros_bloqueados
+    mensajes_en_memoria = [m for m in mensajes_en_memoria if m["numero"] != numero]
+    numeros_bloqueados.add(numero)
+    return jsonify({"status": "eliminado", "numero": numero}), 200
+
 @app.route("/agenda", methods=["GET", "POST"])
 def manejar_agenda():
     global agenda_en_memoria
@@ -94,8 +107,3 @@ def manejar_agenda():
     elif request.method == "POST":
         agenda_en_memoria = request.get_json()
         return jsonify({"status": "ok"}), 200
-@app.route("/mensajes/<numero>", methods=["DELETE"])
-def eliminar_mensajes_por_numero(numero):
-    global mensajes_en_memoria
-    mensajes_en_memoria = [m for m in mensajes_en_memoria if m["numero"] != numero]
-    return jsonify({"status": "eliminado", "numero": numero}), 200
