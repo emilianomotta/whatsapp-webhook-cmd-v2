@@ -22,7 +22,7 @@ def get_access_token():
 
 @app.route("/")
 def index():
-    return "Webhook CMD activo (v25 bloquea eliminados)", 200
+    return "Webhook CMD activo (v25 bloquea y filtra eliminados)", 200
 
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
@@ -47,7 +47,6 @@ def webhook():
                         phone_id = value["metadata"]["phone_number_id"]
                         from_number = msg["from"]
 
-                        # Ignorar mensajes si el número fue eliminado manualmente
                         if from_number in numeros_bloqueados:
                             continue
 
@@ -90,7 +89,8 @@ def webhook():
 
 @app.route("/mensajes", methods=["GET"])
 def obtener_mensajes():
-    return jsonify(mensajes_en_memoria), 200
+    mensajes_visibles = [m for m in mensajes_en_memoria if m["numero"] not in numeros_bloqueados]
+    return jsonify(mensajes_visibles), 200
 
 @app.route("/mensajes/<numero>", methods=["DELETE"])
 def eliminar_mensajes_por_numero(numero):
