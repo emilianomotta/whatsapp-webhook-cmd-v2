@@ -144,7 +144,7 @@ function App() {
               <span className="text-xs text-gray-500">{numero}</span>
               <button className="text-red-500" onClick={() => {
                 const copy = {...agenda}; delete copy[numero]; setAgenda(copy);
-              }}>❌</button>
+              }}>X</button>
             </div>
           ))}
           <div className="flex gap-2 mt-4">
