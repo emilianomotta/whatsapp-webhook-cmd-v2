@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
@@ -83,9 +82,7 @@ def webhook():
 
         return "OK", 200
 
-@app.route("/mensajes", methods=["GET"])
-def obtener_mensajes():
-    return jsonify(mensajes_en_memoria), 200
+
 
 @app.route("/agenda", methods=["GET", "POST"])
 def manejar_agenda():
@@ -95,3 +92,17 @@ def manejar_agenda():
     elif request.method == "POST":
         agenda_en_memoria = request.get_json()
         return jsonify({"status": "ok"}), 200
+mensajes_ocultos = set()
+
+@app.route("/ocultar", methods=["POST"])
+def ocultar_mensaje():
+    data = request.get_json()
+    texto = data.get("texto")
+    if texto:
+        mensajes_ocultos.add(texto)
+    return jsonify({"status": "ok"}), 200
+
+@app.route("/mensajes", methods=["GET"])
+def obtener_mensajes():
+    visibles = [m for m in mensajes_en_memoria if m["texto"] not in mensajes_ocultos]
+    return jsonify(visibles), 200
