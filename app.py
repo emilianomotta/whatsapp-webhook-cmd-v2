@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
 import requests
+import json
 from datetime import datetime
 
 app = Flask(__name__)
@@ -9,10 +10,21 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 
 VERIFY_TOKEN = "Emi-token-123"
 token_file = "access_token.txt"
+bloqueados_file = "bloqueados.json"
 
 mensajes_en_memoria = []
 agenda_en_memoria = {}
-numeros_bloqueados = set()
+
+# Cargar números bloqueados desde archivo
+if os.path.exists(bloqueados_file):
+    with open(bloqueados_file, "r") as f:
+        numeros_bloqueados = set(json.load(f))
+else:
+    numeros_bloqueados = set()
+
+def guardar_bloqueados():
+    with open(bloqueados_file, "w") as f:
+        json.dump(list(numeros_bloqueados), f)
 
 def get_access_token():
     if os.path.exists(token_file):
@@ -22,7 +34,7 @@ def get_access_token():
 
 @app.route("/")
 def index():
-    return "Webhook CMD activo (v25 bloquea y filtra eliminados)", 200
+    return "Webhook CMD activo (v26 con persistencia)", 200
 
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
@@ -97,6 +109,7 @@ def eliminar_mensajes_por_numero(numero):
     global mensajes_en_memoria, numeros_bloqueados
     mensajes_en_memoria = [m for m in mensajes_en_memoria if m["numero"] != numero]
     numeros_bloqueados.add(numero)
+    guardar_bloqueados()
     return jsonify({"status": "eliminado", "numero": numero}), 200
 
 @app.route("/agenda", methods=["GET", "POST"])
