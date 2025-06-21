@@ -181,3 +181,10 @@ def eliminar_mensajes_por_numero(numero):
     global mensajes_en_memoria
     mensajes_en_memoria = [m for m in mensajes_en_memoria if m["numero"] != numero]
     return jsonify({"status": "eliminado", "numero": numero}), 200
+
+
+@app.route("/mensajes/<numero>", methods=["DELETE"])
+def eliminar_mensajes_por_numero(numero):
+    global mensajes_en_memoria
+    mensajes_en_memoria = [m for m in mensajes_en_memoria if m["numero"] != numero]
+    return jsonify({"status": "eliminado", "numero": numero}), 200
