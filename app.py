@@ -1,6 +1,8 @@
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
+import json
 import requests
 from datetime import datetime
 
@@ -9,6 +11,7 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 
 VERIFY_TOKEN = "Emi-token-123"
 token_file = "access_token.txt"
+papelera_file = "papelera.json"
 
 mensajes_en_memoria = []
 agenda_en_memoria = {}
@@ -19,9 +22,21 @@ def get_access_token():
             return f.read().strip()
     return "TOKEN_POR_DEFECTO"
 
+def cargar_papelera():
+    if os.path.exists(papelera_file):
+        with open(papelera_file, "r", encoding="utf-8") as f:
+            return set(json.load(f))
+    return set()
+
+def guardar_papelera(papelera):
+    with open(papelera_file, "w", encoding="utf-8") as f:
+        json.dump(list(papelera), f, ensure_ascii=False, indent=2)
+
+mensajes_ocultos = cargar_papelera()
+
 @app.route("/")
 def index():
-    return "Webhook CMD activo (v18 sin archivos)", 200
+    return "Webhook CMD activo (v29 con papelera persistente)", 200
 
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
@@ -82,8 +97,6 @@ def webhook():
 
         return "OK", 200
 
-
-
 @app.route("/agenda", methods=["GET", "POST"])
 def manejar_agenda():
     global agenda_en_memoria
@@ -92,14 +105,15 @@ def manejar_agenda():
     elif request.method == "POST":
         agenda_en_memoria = request.get_json()
         return jsonify({"status": "ok"}), 200
-mensajes_ocultos = set()
 
 @app.route("/ocultar", methods=["POST"])
 def ocultar_mensaje():
+    global mensajes_ocultos
     data = request.get_json()
     texto = data.get("texto")
     if texto:
         mensajes_ocultos.add(texto)
+        guardar_papelera(mensajes_ocultos)
     return jsonify({"status": "ok"}), 200
 
 @app.route("/mensajes", methods=["GET"])
