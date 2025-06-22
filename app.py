@@ -125,3 +125,13 @@ def ocultar_mensaje():
 def obtener_mensajes():
     visibles = [m for m in mensajes_en_memoria if m.get("id") not in mensajes_ocultos]
     return jsonify(visibles), 200
+
+
+@app.route('/papelera', methods=['GET'])
+def get_papelera():
+    try:
+        with open('papelera.json', 'r', encoding='utf-8') as f:
+            papelera = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        papelera = []
+    return jsonify(papelera)
