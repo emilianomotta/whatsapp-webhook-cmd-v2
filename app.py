@@ -36,7 +36,7 @@ mensajes_ocultos = cargar_papelera()
 
 @app.route("/")
 def index():
-    return "Webhook CMD activo (final con papelera persistente)", 200
+    return "Webhook CMD activo (papelera por ID)", 200
 
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
@@ -58,16 +58,17 @@ def webhook():
                     value = change.get("value", {})
                     messages_list = value.get("messages", [])
                     for msg in messages_list:
+                        msg_id = msg.get("id")
+                        if not msg_id or msg_id in mensajes_ocultos:
+                            continue  # Ignorar mensajes ocultos
+
                         phone_id = value["metadata"]["phone_number_id"]
                         from_number = msg["from"]
                         text_received = msg.get("text", {}).get("body", "").strip()
-
-                        if text_received in mensajes_ocultos:
-                            continue  # NO agregar mensajes ocultos
-
                         contacto = agenda_en_memoria.get(from_number, from_number)
                         fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         mensajes_en_memoria.append({
+                            "id": msg_id,
                             "fecha": fecha,
                             "numero": from_number,
                             "contacto": contacto,
@@ -114,13 +115,13 @@ def manejar_agenda():
 def ocultar_mensaje():
     global mensajes_ocultos
     data = request.get_json()
-    texto = data.get("texto")
-    if texto:
-        mensajes_ocultos.add(texto)
+    msg_id = data.get("id")
+    if msg_id:
+        mensajes_ocultos.add(msg_id)
         guardar_papelera(mensajes_ocultos)
     return jsonify({"status": "ok"}), 200
 
 @app.route("/mensajes", methods=["GET"])
 def obtener_mensajes():
-    visibles = [m for m in mensajes_en_memoria if m["texto"] not in mensajes_ocultos]
+    visibles = [m for m in mensajes_en_memoria if m.get("id") not in mensajes_ocultos]
     return jsonify(visibles), 200
