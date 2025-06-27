@@ -135,3 +135,11 @@ def get_papelera():
     except (FileNotFoundError, json.JSONDecodeError):
         papelera = []
     return jsonify(papelera)
+
+
+
+from flask import send_file
+
+@app.route('/contacts.json')
+def serve_contacts():
+    return send_file('contacts.json', mimetype='application/json')
