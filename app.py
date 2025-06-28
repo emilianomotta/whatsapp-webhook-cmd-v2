@@ -1,3 +1,18 @@
+from flask import Flask, request, jsonify
+import json
+import os
+
+app = Flask(__name__)
+
+@app.route("/save-contacts", methods=["POST"])
+def save_contacts():
+    try:
+        contacts = request.get_json()
+        with open("contacts.json", "w", encoding="utf-8") as f:
+            json.dump(contacts, f, ensure_ascii=False, indent=2)
+        return jsonify({"status": "success"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
