@@ -1,20 +1,4 @@
-from flask import Flask, request, jsonify
-import json
-import os
-
-app = Flask(__name__)
-
-@app.route("/save-contacts", methods=["POST"])
-def save_contacts():
-    try:
-        contacts = request.get_json()
-        with open("contacts.json", "w", encoding="utf-8") as f:
-            json.dump(contacts, f, ensure_ascii=False, indent=2)
-        return jsonify({"status": "success"}), 200
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import os
 import json
@@ -30,6 +14,7 @@ papelera_file = "papelera.json"
 
 mensajes_en_memoria = []
 agenda_en_memoria = {}
+mensajes_ocultos = set()
 
 def get_access_token():
     if os.path.exists(token_file):
@@ -38,20 +23,29 @@ def get_access_token():
     return "TOKEN_POR_DEFECTO"
 
 def cargar_papelera():
+    global mensajes_ocultos
     if os.path.exists(papelera_file):
         with open(papelera_file, "r", encoding="utf-8") as f:
-            return set(json.load(f))
-    return set()
+            mensajes_ocultos = set(json.load(f))
 
-def guardar_papelera(papelera):
+def guardar_papelera():
     with open(papelera_file, "w", encoding="utf-8") as f:
-        json.dump(list(papelera), f, ensure_ascii=False, indent=2)
+        json.dump(list(mensajes_ocultos), f, ensure_ascii=False, indent=2)
 
-mensajes_ocultos = cargar_papelera()
+def cargar_agenda():
+    global agenda_en_memoria
+    if os.path.exists("contacts.json"):
+        with open("contacts.json", "r", encoding="utf-8") as f:
+            agenda_en_memoria = json.load(f)
+    else:
+        agenda_en_memoria = {}
+
+cargar_papelera()
+cargar_agenda()
 
 @app.route("/")
 def index():
-    return "Webhook CMD activo (papelera por ID)", 200
+    return "Webhook CMD activo (agenda + papelera)", 200
 
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
@@ -75,7 +69,7 @@ def webhook():
                     for msg in messages_list:
                         msg_id = msg.get("id")
                         if not msg_id or msg_id in mensajes_ocultos:
-                            continue  # Ignorar mensajes ocultos
+                            continue
 
                         phone_id = value["metadata"]["phone_number_id"]
                         from_number = msg["from"]
@@ -117,6 +111,17 @@ def webhook():
 
         return "OK", 200
 
+@app.route("/save-contacts", methods=["POST"])
+def save_contacts():
+    try:
+        contacts = request.get_json()
+        with open("contacts.json", "w", encoding="utf-8") as f:
+            json.dump(contacts, f, ensure_ascii=False, indent=2)
+        cargar_agenda()
+        return jsonify({"status": "success"}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route("/agenda", methods=["GET", "POST"])
 def manejar_agenda():
     global agenda_en_memoria
@@ -128,12 +133,11 @@ def manejar_agenda():
 
 @app.route("/ocultar", methods=["POST"])
 def ocultar_mensaje():
-    global mensajes_ocultos
     data = request.get_json()
     msg_id = data.get("id")
     if msg_id:
         mensajes_ocultos.add(msg_id)
-        guardar_papelera(mensajes_ocultos)
+        guardar_papelera()
     return jsonify({"status": "ok"}), 200
 
 @app.route("/mensajes", methods=["GET"])
@@ -141,20 +145,15 @@ def obtener_mensajes():
     visibles = [m for m in mensajes_en_memoria if m.get("id") not in mensajes_ocultos]
     return jsonify(visibles), 200
 
-
-@app.route('/papelera', methods=['GET'])
+@app.route("/papelera", methods=["GET"])
 def get_papelera():
     try:
-        with open('papelera.json', 'r', encoding='utf-8') as f:
+        with open(papelera_file, "r", encoding="utf-8") as f:
             papelera = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         papelera = []
     return jsonify(papelera)
 
-
-
-from flask import send_file
-
-@app.route('/contacts.json')
+@app.route("/contacts.json")
 def serve_contacts():
-    return send_file('contacts.json', mimetype='application/json')
+    return send_file("contacts.json", mimetype="application/json")
