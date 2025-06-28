@@ -1,2 +1,9 @@
-buildCommand: pip install -r requirements.txt
-startCommand: gunicorn app:app
+
+services:
+  - type: web
+    name: contacts-api
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python app.py"
+    envVars: []
