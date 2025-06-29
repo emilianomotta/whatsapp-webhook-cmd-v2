@@ -82,6 +82,8 @@ def webhook():
                         text_received = msg.get("text", {}).get("body", "").strip()
                         contacto = agenda_en_memoria.get(from_number, from_number)
                         fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        nombre = obtener_nombre_personalizado(from_number)
+        mensaje_final = f"{nombre}: {text_received}"
                         mensajes_en_memoria.append({
                             "id": msg_id,
                             "fecha": fecha,
