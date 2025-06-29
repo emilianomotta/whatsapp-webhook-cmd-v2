@@ -158,3 +158,23 @@ from flask import send_file
 @app.route('/contacts.json')
 def serve_contacts():
     return send_file('contacts.json', mimetype='application/json')
+
+
+@app.route("/agenda", methods=["GET"])
+def get_agenda():
+    try:
+        with open("contacts.json", "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/agenda", methods=["POST"])
+def update_agenda():
+    try:
+        data = request.get_json()
+        with open("contacts.json", "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
