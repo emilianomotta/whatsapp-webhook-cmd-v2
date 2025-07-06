@@ -2,21 +2,6 @@ from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import os
 import json
-
-import requests
-
-def obtener_nombre_personalizado(numero):
-    try:
-        response = requests.get("https://whatsapp-webhook-cmd-v2.onrender.com/agenda")
-        if response.status_code == 200:
-            agenda = response.json()
-            return agenda.get(numero, numero)
-        else:
-            return numero
-    except Exception as e:
-        print(f"Error consultando agenda: {e}")
-        return numero
-
 from datetime import datetime
 
 app = Flask(__name__)
