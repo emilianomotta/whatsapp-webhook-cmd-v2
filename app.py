@@ -1,180 +1,79 @@
 
 from flask import Flask, request, jsonify
-
-import requests
-
-def obtener_nombre_personalizado(numero):
-    try:
-        response = requests.get("https://whatsapp-webhook-cmd-v2.onrender.com/agenda")
-        if response.status_code == 200:
-            agenda = response.json()
-            return agenda.get(numero, numero)
-        else:
-            return numero
-    except Exception as e:
-        print(f"Error consultando agenda: {e}")
-        return numero
-
 from flask_cors import CORS
-import os
 import json
-import requests
+import os
 from datetime import datetime
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+CORS(app)
 
-VERIFY_TOKEN = "Emi-token-123"
-token_file = "access_token.txt"
-papelera_file = "papelera.json"
+CONTACTS_FILE = "contacts.json"
+MESSAGES_FILE = "messages.json"
 
-mensajes_en_memoria = []
-agenda_en_memoria = {}
+# Cargar contactos
+def load_contacts():
+    if not os.path.exists(CONTACTS_FILE):
+        return {}
+    with open(CONTACTS_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
 
-def get_access_token():
-    if os.path.exists(token_file):
-        with open(token_file, "r") as f:
-            return f.read().strip()
-    return "TOKEN_POR_DEFECTO"
+# Guardar mensajes
+def save_messages(messages):
+    with open(MESSAGES_FILE, "w", encoding="utf-8") as f:
+        json.dump(messages, f, ensure_ascii=False, indent=2)
 
-def cargar_papelera():
-    if os.path.exists(papelera_file):
-        with open(papelera_file, "r", encoding="utf-8") as f:
-            return set(json.load(f))
-    return set()
+# Cargar mensajes existentes
+def load_messages():
+    if not os.path.exists(MESSAGES_FILE):
+        return []
+    with open(MESSAGES_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
 
-def guardar_papelera(papelera):
-    with open(papelera_file, "w", encoding="utf-8") as f:
-        json.dump(list(papelera), f, ensure_ascii=False, indent=2)
+# Endpoint para sincronización desde Venom Bot
+@app.route("/sync", methods=["POST"])
+def sync_messages():
+    incoming = request.json
+    if not isinstance(incoming, list):
+        return jsonify({"error": "El cuerpo debe ser una lista de mensajes"}), 400
 
-mensajes_ocultos = cargar_papelera()
+    contacts = load_contacts()
+    existing = load_messages()
+    nuevos = []
 
-@app.route("/")
-def index():
-    return "Webhook CMD activo (papelera por ID)", 200
+    ya_guardados = {(m.get("from"), m.get("body"), m.get("timestamp")) for m in existing}
 
-@app.route("/webhook", methods=["GET", "POST"])
-def webhook():
-    if request.method == "GET":
-        mode = request.args.get("hub.mode")
-        token = request.args.get("hub.verify_token")
-        challenge = request.args.get("hub.challenge")
-        if mode == "subscribe" and token == VERIFY_TOKEN:
-            return challenge, 200
-        return "Unauthorized", 403
+    for m in incoming:
+        key = (m.get("from"), m.get("body"), m.get("timestamp"))
+        if key not in ya_guardados:
+            nombre = contacts.get(m["from"], m["from"])
+            hora = datetime.now().strftime("%H:%M")
+            cuerpo = m.get("body", "").lower()
 
-    elif request.method == "POST":
-        data = request.get_json()
-        print("==> MENSAJE RECIBIDO:", data)
+            if "salida" in cuerpo:
+                procesado = False
+            else:
+                procesado = True
 
-        try:
-            for entry in data.get("entry", []):
-                for change in entry.get("changes", []):
-                    value = change.get("value", {})
-                    messages_list = value.get("messages", [])
-                    for msg in messages_list:
-                        msg_id = msg.get("id")
-                        if not msg_id or msg_id in mensajes_ocultos:
-                            continue  # Ignorar mensajes ocultos
+            nuevos.append({
+                "from": m["from"],
+                "body": m["body"],
+                "nombre": nombre,
+                "hora": hora,
+                "procesado": procesado,
+                "timestamp": m.get("timestamp")
+            })
 
-                        phone_id = value["metadata"]["phone_number_id"]
-                        from_number = msg["from"]
-                        text_received = msg.get("text", {}).get("body", "").strip()
-                        contacto = agenda_en_memoria.get(from_number, from_number)
-                        fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        mensajes_en_memoria.append({
-                            "id": msg_id,
-                            "fecha": fecha,
-                            "numero": from_number,
-                            "contacto": contacto,
-                            "texto": text_received
-                        })
+    todos = existing + nuevos
+    save_messages(todos)
 
-                        palabras_ingreso = ["ingreso", "entrada", "entré", "entro", "ingresé"]
-                        palabras_salida = ["salida", "salí", "salgo", "me fui", "fuera"]
+    return jsonify({"agregados": len(nuevos), "total": len(todos)})
 
-                        if any(p in text_received.lower() for p in palabras_ingreso):
-                            respuesta = "Tu mensaje fue recibido por el CMD de Montevideo. Si luego de 5 minutos no eres contactado el ingreso se considera AUTORIZADO, no olvides informar la salida, gracias."
-                        elif any(p in text_received.lower() for p in palabras_salida):
-                            respuesta = "Tu mensaje fue recibido por el CMD de Montevideo, gracias por informar la salida, saludos."
-                        else:
-                            respuesta = "Mensaje recibido por el CMD de Montevideo."
+# Endpoint para que la consola lea mensajes
+@app.route("/messages", methods=["GET"])
+def get_messages():
+    messages = load_messages()
+    return jsonify(messages)
 
-                        url = f"https://graph.facebook.com/v19.0/{phone_id}/messages"
-                        headers = {
-                            "Authorization": f"Bearer {get_access_token()}",
-                            "Content-Type": "application/json"
-                        }
-                        body = {
-                            "messaging_product": "whatsapp",
-                            "to": from_number,
-                            "text": {"body": respuesta}
-                        }
-                        print("==> RESPUESTA AUTOMÁTICA:", respuesta)
-                        requests.post(url, headers=headers, json=body)
-        except Exception as e:
-            print("Error al procesar mensaje:", e)
-
-        return "OK", 200
-
-@app.route("/agenda", methods=["GET", "POST"])
-def manejar_agenda():
-    global agenda_en_memoria
-    if request.method == "GET":
-        return jsonify(agenda_en_memoria), 200
-    elif request.method == "POST":
-        agenda_en_memoria = request.get_json()
-        return jsonify({"status": "ok"}), 200
-
-@app.route("/ocultar", methods=["POST"])
-def ocultar_mensaje():
-    global mensajes_ocultos
-    data = request.get_json()
-    msg_id = data.get("id")
-    if msg_id:
-        mensajes_ocultos.add(msg_id)
-        guardar_papelera(mensajes_ocultos)
-    return jsonify({"status": "ok"}), 200
-
-@app.route("/mensajes", methods=["GET"])
-def obtener_mensajes():
-    visibles = [m for m in mensajes_en_memoria if m.get("id") not in mensajes_ocultos]
-    return jsonify(visibles), 200
-
-
-@app.route('/papelera', methods=['GET'])
-def get_papelera():
-    try:
-        with open('papelera.json', 'r', encoding='utf-8') as f:
-            papelera = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        papelera = []
-    return jsonify(papelera)
-
-
-
-from flask import send_file
-
-@app.route('/contacts.json')
-def serve_contacts():
-    return send_file('contacts.json', mimetype='application/json')
-
-
-@app.route("/agenda", methods=["GET"])
-def get_agenda():
-    try:
-        with open("contacts.json", "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return jsonify(data)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/agenda", methods=["POST"])
-def update_agenda():
-    try:
-        data = request.get_json()
-        with open("contacts.json", "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
-        return jsonify({"status": "ok"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+if __name__ == "__main__":
+    app.run(debug=False, port=5000)
