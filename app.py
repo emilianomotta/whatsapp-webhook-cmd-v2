@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify
 
 import requests
@@ -178,3 +177,17 @@ def update_agenda():
         return jsonify({"status": "ok"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/agenda", methods=["GET"])
+def get_agenda():
+    try:
+        with open("contacts.json", "r", encoding="utf-8") as f:
+            agenda = json.load(f)
+        return jsonify(agenda)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/contacts.json", methods=["GET"])
+def serve_contacts():
+    from flask import send_file
+    return send_file("contacts.json")
