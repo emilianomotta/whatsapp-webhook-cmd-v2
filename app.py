@@ -8,6 +8,14 @@ app = Flask(__name__)
 CORS(app)
 
 def cargar_agenda():
+    path = os.path.join(os.path.dirname(__file__), 'contacts.json')
+    if os.path.exists(path):
+        with open(path, 'r', encoding='utf-8') as f:
+            datos = json.load(f)
+            if isinstance(datos, dict):
+                return [{'numero': k, 'nombre': v} for k, v in datos.items()]
+            return datos
+    return []
     try:
         with open("contacts.json", "r", encoding="utf-8") as f:
             return json.load(f)
