@@ -65,8 +65,6 @@ def agenda():
 def mensajes():
     return send_file('messages.json', mimetype='application/json')
 
-@app.route('/papelera', methods=['GET'])
-def papelera():
     if os.path.exists("deleted.json"):
         return send_file('deleted.json', mimetype='application/json')
     else:
@@ -101,5 +99,17 @@ def ocultar():
 
         return jsonify({"success": True, "id": mensaje_id}), 200
 
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+@app.route('/papelera', methods=['GET'])
+def papelera():
+    try:
+        papelera_path = os.path.join(os.path.dirname(__file__), "papelera.json")
+        if os.path.exists(papelera_path):
+            with open(papelera_path, "r", encoding="utf-8") as f:
+                papelera = json.load(f)
+        else:
+            papelera = []
+        return jsonify(papelera)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
