@@ -5,37 +5,10 @@ import json
 import os
 from datetime import datetime
 
-import requests
-
-def enviar_a_consolas(mensaje):
-    urls = [
-        "https://cmd-console.web.app/messages",     # Consola Principal
-        "https://agenda-editor-cmd.web.app/messages"  # Consola Agenda
-    ]
-    for url in urls:
-        try:
-            requests.post(url, json=mensaje, timeout=3)
-        except Exception as e:
-            print(f"No se pudo enviar a {url}: {e}")
-
-
 app = Flask(__name__)
 CORS(app)
 
-
 def cargar_agenda():
-    try:
-        response = requests.get("https://whatsapp-webhook-cmd-v2.onrender.com/agenda", timeout=3)
-        if response.status_code == 200:
-            return response.json()
-    except:
-        pass
-    try:
-        with open("contacts.json", "r", encoding="utf-8") as f:
-            return json.load(f)
-    except:
-        return []
-    
     try:
         with open("contacts.json", "r", encoding="utf-8") as f:
             return json.load(f)
@@ -102,3 +75,24 @@ def papelera():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
+
+@app.route("/delete", methods=["POST"])
+def eliminar_mensaje():
+    data = request.get_json()
+    mensaje_id = data.get("id")
+    if not mensaje_id:
+        return jsonify({"error": "ID no proporcionado"}), 400
+
+    try:
+        with open("papelera.json", "r", encoding="utf-8") as f:
+            papelera = json.load(f)
+    except:
+        papelera = []
+
+    if mensaje_id not in papelera:
+        papelera.append(mensaje_id)
+        with open("papelera.json", "w", encoding="utf-8") as f:
+            json.dump(papelera, f, indent=2, ensure_ascii=False)
+
+    return jsonify({"status": "Mensaje eliminado"}), 200
