@@ -122,3 +122,18 @@ def papelera():
         return jsonify(papelera)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/agenda', methods=['POST'])
+def guardar_agenda():
+    try:
+        data = request.get_json()
+        if not isinstance(data, dict):
+            return jsonify({"error": "Formato inválido"}), 400
+
+        contacts_path = os.path.join(os.path.dirname(__file__), "contacts.json")
+        with open(contacts_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+
+        return jsonify({"success": True}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
