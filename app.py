@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import json
@@ -73,51 +72,34 @@ def papelera():
     else:
         return jsonify([])
 
+if __name__ == '__main__':
+    app.run(debug=True)
 
-
-@app.route('/eliminar', methods=['POST'])
-def eliminar():
-    data = request.get_json()
-    mensaje_id = data.get("id")
-
-    if not mensaje_id:
-        return jsonify({"error": "ID requerido"}), 400
-
+@app.route("/ocultar", methods=["POST"])
+def ocultar():
     try:
-        # Leer mensajes existentes
-        with open("messages.json", "r", encoding="utf-8") as f:
-            mensajes = json.load(f)
+        data = request.get_json()
+        mensaje_id = data.get("id")
+        if not mensaje_id:
+            return jsonify({"error": "ID no proporcionado"}), 400
 
-        # Buscar el mensaje por ID
-        mensaje_a_borrar = None
-        mensajes_filtrados = []
-        for m in mensajes:
-            if m["id"] == mensaje_id:
-                mensaje_a_borrar = m
-            else:
-                mensajes_filtrados.append(m)
-
-        if not mensaje_a_borrar:
-            return jsonify({"error": "Mensaje no encontrado"}), 404
-
-        # Guardar el mensaje eliminado en papelera.json
-        papelera = []
-        if os.path.exists("papelera.json"):
-            with open("papelera.json", "r", encoding="utf-8") as f:
+        # Leer papelera.json actual
+        papelera_path = os.path.join(os.path.dirname(__file__), "papelera.json")
+        if os.path.exists(papelera_path):
+            with open(papelera_path, "r", encoding="utf-8") as f:
                 papelera = json.load(f)
-        papelera.append(mensaje_a_borrar)
-        with open("papelera.json", "w", encoding="utf-8") as f:
-            json.dump(papelera, f, indent=2, ensure_ascii=False)
+        else:
+            papelera = []
 
-        # Reescribir messages.json sin el mensaje borrado
-        with open("messages.json", "w", encoding="utf-8") as f:
-            json.dump(mensajes_filtrados, f, indent=2, ensure_ascii=False)
+        # Agregar nuevo ID si no está ya en la lista
+        if mensaje_id not in papelera:
+            papelera.append(mensaje_id)
 
-        return jsonify({"status": "eliminado"}), 200
+        # Guardar la nueva papelera
+        with open(papelera_path, "w", encoding="utf-8") as f:
+            json.dump(papelera, f, indent=2)
+
+        return jsonify({"success": True, "id": mensaje_id}), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
-if __name__ == '__main__':
-    app.run(debug=True)
