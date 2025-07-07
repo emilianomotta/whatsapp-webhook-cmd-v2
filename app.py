@@ -1,37 +1,35 @@
-
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
-import json
 import os
+import json
 from datetime import datetime
+import requests
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
-def cargar_agenda():
-    try:
-        with open("contacts.json", "r", encoding="utf-8") as f:
-            return json.load(f)
-    except:
-        return []
+mensajes_en_memoria = []
 
-@app.route('/receive', methods=['POST'])
+@app.route("/receive", methods=["POST"])
 def receive():
     data = request.get_json()
-    phone = data.get('phone')
-    message = data.get('message')
+    phone = data.get("phone")
+    message = data.get("message")
 
     if not phone or not message:
-        return jsonify({'error': 'Datos incompletos'}), 400
+        return jsonify({"error": "Faltan datos"}), 400
 
     numero = "+{}".format(phone) if not phone.startswith("+") else phone
 
-    agenda = cargar_agenda()
     nombre = numero
-    for contacto in agenda:
-        if contacto.get("numero") == numero:
-            nombre = contacto.get("nombre", numero)
-            break
+    try:
+        agenda = requests.get("https://whatsapp-webhook-cmd-v2.onrender.com/agenda").json()
+        for contacto in agenda:
+            if contacto.get("numero") == numero:
+                nombre = contacto.get("nombre", numero)
+                break
+    except:
+        pass
 
     mensaje = {
         "id": str(datetime.now().timestamp()),
@@ -40,38 +38,24 @@ def receive():
         "contacto": nombre,
         "texto": message
     }
+    mensajes_en_memoria.append(mensaje)
+    return jsonify({"status": "ok"})
 
-    try:
-        if os.path.exists("messages.json"):
-            with open("messages.json", "r", encoding="utf-8") as f:
-                mensajes = json.load(f)
-        else:
-            mensajes = []
-
-        mensajes.append(mensaje)
-        with open("messages.json", "w", encoding="utf-8") as f:
-            json.dump(mensajes, f, indent=2, ensure_ascii=False)
-
-        return jsonify({"status": "guardado"}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/contacts.json', methods=['GET'])
-@app.route('/agenda', methods=['GET'])
-def agenda():
-    return send_file('contacts.json', mimetype='application/json')
-
-@app.route('/messages.json', methods=['GET'])
-@app.route('/mensajes', methods=['GET'])
+@app.route("/mensajes", methods=["GET"])
 def mensajes():
-    return send_file('messages.json', mimetype='application/json')
+    return jsonify(mensajes_en_memoria)
 
-@app.route('/papelera', methods=['GET'])
-def papelera():
-    if os.path.exists("deleted.json"):
-        return send_file('deleted.json', mimetype='application/json')
-    else:
+@app.route("/agenda", methods=["GET"])
+def agenda():
+    try:
+        with open("contacts.json", "r", encoding="utf-8") as f:
+            return jsonify(json.load(f))
+    except:
         return jsonify([])
 
-if __name__ == '__main__':
+@app.route("/contacts.json", methods=["GET"])
+def contacts_json():
+    return send_file("contacts.json", mimetype="application/json")
+
+if __name__ == "__main__":
     app.run(debug=True)
