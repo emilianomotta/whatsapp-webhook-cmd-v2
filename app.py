@@ -73,26 +73,51 @@ def papelera():
     else:
         return jsonify([])
 
-if __name__ == '__main__':
-    app.run(debug=True)
 
 
-@app.route("/delete", methods=["POST"])
-def eliminar_mensaje():
+@app.route('/eliminar', methods=['POST'])
+def eliminar():
     data = request.get_json()
     mensaje_id = data.get("id")
+
     if not mensaje_id:
-        return jsonify({"error": "ID no proporcionado"}), 400
+        return jsonify({"error": "ID requerido"}), 400
 
     try:
-        with open("papelera.json", "r", encoding="utf-8") as f:
-            papelera = json.load(f)
-    except:
-        papelera = []
+        # Leer mensajes existentes
+        with open("messages.json", "r", encoding="utf-8") as f:
+            mensajes = json.load(f)
 
-    if mensaje_id not in papelera:
-        papelera.append(mensaje_id)
+        # Buscar el mensaje por ID
+        mensaje_a_borrar = None
+        mensajes_filtrados = []
+        for m in mensajes:
+            if m["id"] == mensaje_id:
+                mensaje_a_borrar = m
+            else:
+                mensajes_filtrados.append(m)
+
+        if not mensaje_a_borrar:
+            return jsonify({"error": "Mensaje no encontrado"}), 404
+
+        # Guardar el mensaje eliminado en papelera.json
+        papelera = []
+        if os.path.exists("papelera.json"):
+            with open("papelera.json", "r", encoding="utf-8") as f:
+                papelera = json.load(f)
+        papelera.append(mensaje_a_borrar)
         with open("papelera.json", "w", encoding="utf-8") as f:
             json.dump(papelera, f, indent=2, ensure_ascii=False)
 
-    return jsonify({"status": "Mensaje eliminado"}), 200
+        # Reescribir messages.json sin el mensaje borrado
+        with open("messages.json", "w", encoding="utf-8") as f:
+            json.dump(mensajes_filtrados, f, indent=2, ensure_ascii=False)
+
+        return jsonify({"status": "eliminado"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
