@@ -65,8 +65,6 @@ def agenda():
 def mensajes():
     return send_file('messages.json', mimetype='application/json')
 
-@app.route('/papelera', methods=['GET'])
-def papelera():
     if os.path.exists("deleted.json"):
         return send_file('deleted.json', mimetype='application/json')
     else:
@@ -75,17 +73,43 @@ def papelera():
 if __name__ == '__main__':
     app.run(debug=True)
 
-@app.route('/agenda', methods=['POST'])
-def guardar_agenda():
+@app.route("/ocultar", methods=["POST"])
+def ocultar():
     try:
         data = request.get_json()
-        if not isinstance(data, dict):
-            return jsonify({"error": "Formato inválido"}), 400
+        mensaje_id = data.get("id")
+        if not mensaje_id:
+            return jsonify({"error": "ID no proporcionado"}), 400
 
-        contacts_path = os.path.join(os.path.dirname(__file__), "contacts.json")
-        with open(contacts_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
+        # Leer papelera.json actual
+        papelera_path = os.path.join(os.path.dirname(__file__), "papelera.json")
+        if os.path.exists(papelera_path):
+            with open(papelera_path, "r", encoding="utf-8") as f:
+                papelera = json.load(f)
+        else:
+            papelera = []
 
-        return jsonify({"success": True}), 200
+        # Agregar nuevo ID si no está ya en la lista
+        if mensaje_id not in papelera:
+            papelera.append(mensaje_id)
+
+        # Guardar la nueva papelera
+        with open(papelera_path, "w", encoding="utf-8") as f:
+            json.dump(papelera, f, indent=2)
+
+        return jsonify({"success": True, "id": mensaje_id}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+@app.route('/papelera', methods=['GET'])
+def papelera():
+    try:
+        papelera_path = os.path.join(os.path.dirname(__file__), "papelera.json")
+        if os.path.exists(papelera_path):
+            with open(papelera_path, "r", encoding="utf-8") as f:
+                papelera = json.load(f)
+        else:
+            papelera = []
+        return jsonify(papelera)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
