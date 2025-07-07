@@ -8,7 +8,6 @@ from datetime import datetime
 app = Flask(__name__)
 CORS(app)
 
-# Cargar agenda desde contacts.json
 def cargar_agenda():
     try:
         with open("contacts.json", "r", encoding="utf-8") as f:
@@ -16,7 +15,6 @@ def cargar_agenda():
     except:
         return []
 
-# Ruta para recibir mensajes desde VenomBot
 @app.route('/receive', methods=['POST'])
 def receive():
     data = request.get_json()
@@ -26,10 +24,8 @@ def receive():
     if not phone or not message:
         return jsonify({'error': 'Datos incompletos'}), 400
 
-    # Formatear número
     numero = "+{}".format(phone) if not phone.startswith("+") else phone
 
-    # Buscar nombre en agenda
     agenda = cargar_agenda()
     nombre = numero
     for contacto in agenda:
@@ -37,7 +33,6 @@ def receive():
             nombre = contacto.get("nombre", numero)
             break
 
-    # Crear mensaje
     mensaje = {
         "id": str(datetime.now().timestamp()),
         "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -61,10 +56,22 @@ def receive():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# Ruta para la agenda con CORS
 @app.route('/contacts.json', methods=['GET'])
+@app.route('/agenda', methods=['GET'])
 def agenda():
     return send_file('contacts.json', mimetype='application/json')
+
+@app.route('/messages.json', methods=['GET'])
+@app.route('/mensajes', methods=['GET'])
+def mensajes():
+    return send_file('messages.json', mimetype='application/json')
+
+@app.route('/papelera', methods=['GET'])
+def papelera():
+    if os.path.exists("deleted.json"):
+        return send_file('deleted.json', mimetype='application/json')
+    else:
+        return jsonify([])
 
 if __name__ == '__main__':
     app.run(debug=True)
