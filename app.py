@@ -5,10 +5,37 @@ import json
 import os
 from datetime import datetime
 
+import requests
+
+def enviar_a_consolas(mensaje):
+    urls = [
+        "https://cmd-console.web.app/messages",     # Consola Principal
+        "https://agenda-editor-cmd.web.app/messages"  # Consola Agenda
+    ]
+    for url in urls:
+        try:
+            requests.post(url, json=mensaje, timeout=3)
+        except Exception as e:
+            print(f"No se pudo enviar a {url}: {e}")
+
+
 app = Flask(__name__)
 CORS(app)
 
+
 def cargar_agenda():
+    try:
+        response = requests.get("https://whatsapp-webhook-cmd-v2.onrender.com/agenda", timeout=3)
+        if response.status_code == 200:
+            return response.json()
+    except:
+        pass
+    try:
+        with open("contacts.json", "r", encoding="utf-8") as f:
+            return json.load(f)
+    except:
+        return []
+    
     try:
         with open("contacts.json", "r", encoding="utf-8") as f:
             return json.load(f)
@@ -59,12 +86,6 @@ def receive():
 @app.route('/contacts.json', methods=['GET'])
 @app.route('/agenda', methods=['GET'])
 def agenda():
-@app.route('/agenda', methods=['POST'])
-def guardar_agenda():
-    data = request.get_json()
-    with open("contacts.json", "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    return jsonify({"status": "ok"})
     return send_file('contacts.json', mimetype='application/json')
 
 @app.route('/messages.json', methods=['GET'])
