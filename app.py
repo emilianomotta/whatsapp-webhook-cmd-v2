@@ -59,6 +59,12 @@ def receive():
 @app.route('/contacts.json', methods=['GET'])
 @app.route('/agenda', methods=['GET'])
 def agenda():
+@app.route('/agenda', methods=['POST'])
+def guardar_agenda():
+    data = request.get_json()
+    with open("contacts.json", "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    return jsonify({"status": "ok"})
     return send_file('contacts.json', mimetype='application/json')
 
 @app.route('/messages.json', methods=['GET'])
