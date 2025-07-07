@@ -1,61 +1,67 @@
+
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
-import os
 import json
+import os
 from datetime import datetime
-import requests
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+CORS(app)
 
-mensajes_en_memoria = []
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MESSAGES_FILE = os.path.join(BASE_DIR, "messages.json")
+CONTACTS_FILE = os.path.join(BASE_DIR, "contacts.json")
 
-@app.route("/receive", methods=["POST"])
-def receive():
+def load_json(path):
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            try:
+                return json.load(f)
+            except json.JSONDecodeError:
+                return []
+    return []
+
+def save_json(path, data):
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+@app.route("/mensaje", methods=["POST"])
+def recibir_mensaje():
     data = request.get_json()
-    phone = data.get("phone")
-    message = data.get("message")
 
-    if not phone or not message:
+    numero = data.get("numero")
+    mensaje = data.get("mensaje")
+
+    if not numero or not mensaje:
         return jsonify({"error": "Faltan datos"}), 400
 
-    numero = "+{}".format(phone) if not phone.startswith("+") else phone
+    contactos = load_json(CONTACTS_FILE)
+    nombre = next((c["nombre"] for c in contactos if c["numero"] == numero), f"Desconocido ({numero})")
 
-    nombre = numero
-    try:
-        agenda = requests.get("https://whatsapp-webhook-cmd-v2.onrender.com/agenda").json()
-        for contacto in agenda:
-            if contacto.get("numero") == numero:
-                nombre = contacto.get("nombre", numero)
-                break
-    except:
-        pass
+    if "salida" in mensaje.lower():
+        return jsonify({"estado": "Mensaje de salida ignorado"}), 200
 
-    mensaje = {
-        "id": str(datetime.now().timestamp()),
-        "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    entrada = {
+        "nombre": nombre,
         "numero": numero,
-        "contacto": nombre,
-        "texto": message
+        "mensaje": mensaje,
+        "hora": datetime.now().strftime("%H:%M:%S"),
+        "fecha": datetime.now().strftime("%Y-%m-%d")
     }
-    mensajes_en_memoria.append(mensaje)
-    return jsonify({"status": "ok"})
+
+    mensajes = load_json(MESSAGES_FILE)
+    mensajes.append(entrada)
+    save_json(MESSAGES_FILE, mensajes)
+
+    return jsonify({"estado": "Mensaje guardado"}), 200
 
 @app.route("/mensajes", methods=["GET"])
-def mensajes():
-    return jsonify(mensajes_en_memoria)
+def obtener_mensajes():
+    return send_file(MESSAGES_FILE, mimetype="application/json")
 
 @app.route("/agenda", methods=["GET"])
-def agenda():
-    try:
-        with open("contacts.json", "r", encoding="utf-8") as f:
-            return jsonify(json.load(f))
-    except:
-        return jsonify([])
-
-@app.route("/contacts.json", methods=["GET"])
-def contacts_json():
-    return send_file("contacts.json", mimetype="application/json")
+def obtener_agenda():
+    return send_file(CONTACTS_FILE, mimetype="application/json")
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000)
