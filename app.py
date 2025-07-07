@@ -24,6 +24,7 @@ def receive():
         return jsonify({'error': 'Datos incompletos'}), 400
 
     numero = "+{}".format(phone) if not phone.startswith("+") else phone
+    numero = numero.replace('@c.us', '').replace('@s.whatsapp.net', '')
 
     agenda = cargar_agenda()
     nombre = numero
