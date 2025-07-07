@@ -13,7 +13,7 @@ def cargar_agenda():
         with open(path, 'r', encoding='utf-8') as f:
             datos = json.load(f)
             if isinstance(datos, dict):
-                return [{'numero': k, 'nombre': v} for k, v in datos.items()]
+                return [{'numero': '+598' + k.lstrip('+'), 'nombre': v} for k, v in datos.items()]
             return datos
     return []
     try:
