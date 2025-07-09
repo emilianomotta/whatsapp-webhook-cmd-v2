@@ -3,6 +3,7 @@ from flask_cors import CORS
 import json
 import os
 from datetime import datetime
+from pytz import timezone  # añadido para zona horaria Uruguay
 
 app = Flask(__name__)
 CORS(app)
@@ -43,7 +44,7 @@ def receive():
 
     mensaje = {
         "id": str(datetime.now().timestamp()),
-        "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "fecha": datetime.now(timezone("America/Montevideo")).strftime("%Y-%m-%d %H:%M:%S"),
         "numero": numero,
         "contacto": nombre,
         "texto": message
