@@ -1,8 +1,3 @@
-
-from datetime import datetime
-import pytz
-uruguay_tz = pytz.timezone('America/Montevideo')
-
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import json
@@ -47,8 +42,8 @@ def receive():
             break
 
     mensaje = {
-        "id": str(datetime.now(uruguay_tz).timestamp()),
-        "fecha": datetime.now(uruguay_tz).strftime("%Y-%m-%d %H:%M:%S"),
+        "id": str(datetime.now().timestamp()),
+        "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "numero": numero,
         "contacto": nombre,
         "texto": message
